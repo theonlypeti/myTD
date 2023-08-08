@@ -1,0 +1,93 @@
+.tile {
+    /*margin:0;*/
+    /*padding:0;*/
+    /*border:none;*/
+    outline:1px solid #000;
+    /*width: 5vw;*/
+    /*height: 5vw;*/
+    aspect-ratio: 1/ 1;
+    /*display: inline-flex;*/
+    align-items: center;
+    position: relative;
+    /*display: inline-block; !*IMPORTANT INLINE MAKES STUFF GO NOT IN ONE COLUMN LOL*!*/
+
+}
+
+.grid{
+    /*grid-template-columns: auto auto;*/
+    /*position: relative;*/
+    position: relative;
+    /*height: 10vw;*/
+    /*width: 150vh;*/
+    display: inline-grid;
+
+    /*display: flex;*/
+    /*flex-wrap: wrap*/
+}
+
+.enemy{
+    position: absolute;
+    width: 1vw;
+    height: 1vw;
+    background-color: green;
+}
+
+.path{
+    background-color: #c99445
+}
+
+.grass{
+    background-color: #81c070
+}
+
+body{
+    background-color: #222222;
+}
+
+.targeted{
+    background-color: #ff0000;
+}
+
+.targeted2{
+    background-color: #ffaaa0;
+}
+
+.cannon{
+    position: absolute;
+    width: 2vw;
+    height: 0.3vw;
+    rotate: 90deg;
+    background-color: #000000;
+}
+
+.tower{
+    position: absolute;
+    width: 2vw;
+    height: 2vw;
+    border-radius: 1vw;
+    background-color: #000000;
+}
+
+
+@keyframes cannonpow {
+    50%{
+        width: 1vw;
+        height: 0.8vw;
+    }
+    0%,100% {
+        width: 2vw;
+        height: 0.3vw;
+    }
+
+}
+
+.cannonpow{
+    animation: cannonpow 0.1s linear 0s 1 normal;
+}
+
+.hpbar{
+    position: absolute;
+    width: 2vw;
+    height: 0.2vw;
+    background-color: #ff0000;
+}
