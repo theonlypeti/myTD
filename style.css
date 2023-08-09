@@ -27,9 +27,12 @@
 
 .enemy{
     position: absolute;
-    width: 1vw;
-    height: 1vw;
-    background-color: green;
+    width: 2vw;
+    height: 2vw;
+    /*background-color: green;*/
+    background-image: url("imgs/alien.png");
+    background-size: contain;
+
 }
 
 .path{
@@ -38,6 +41,10 @@
 
 .grass{
     background-color: #81c070
+}
+
+.stone{
+    background-color: #a0a0a0
 }
 
 body{
@@ -51,6 +58,21 @@ body{
 .targeted2{
     background-color: #ffaaa0;
 }
+
+.radiuscircle{
+    position: absolute;
+    border: red solid 1px;
+    background-color: rgba(0,0,0,0);
+    pointer-events: none;
+}
+
+.corner{
+    position: absolute;
+    width: 1vw;
+    height: 1vw;
+    background-color: #000000;
+}
+
 
 .cannon{
     position: absolute;
@@ -68,15 +90,33 @@ body{
     background-color: #000000;
 }
 
+.tesla{
+    position: absolute;
+    width: 2vw;
+    height: 2vw;
+    border-radius: 1vw;
+    background-color: #0c3b65;
+}
+
+.lightning{
+    position: absolute;
+    width: 0.2vw;
+    height: 0.2vw;
+    background-color: #34c8fc;
+}
+
 
 @keyframes cannonpow {
     50%{
-        width: 1vw;
-        height: 0.8vw;
+        /*width: 1vw;*/
+        /*height: 0.8vw;*/
+        border-radius: 2vw;
+        scale: 150%;
     }
     0%,100% {
-        width: 2vw;
-        height: 0.3vw;
+        border-radius: 0px;
+        /*width: 2vw;*/
+        /*height: 0.3vw;*/
     }
 
 }
@@ -90,4 +130,9 @@ body{
     width: 2vw;
     height: 0.2vw;
     background-color: #ff0000;
+}
+
+#ui{
+    grid-template-columns: auto auto;
+    display: inline-grid;
 }
