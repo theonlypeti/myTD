@@ -10,3 +10,7 @@ function facing(elem,x=0,y=0,offset=0){
     // elem.style.height = Math.min(100,Math.sqrt(Math.pow(parseInt(elem.style.top)-y,2) + Math.pow(parseInt(elem.style.left) - x,2))) + "px";
     elem.style.rotate = Math.atan2(ey - y, ex - x) * 180 / Math.PI + offset + "deg"
 }
+
+function distance(a,b){
+    return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+}

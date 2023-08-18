@@ -1,17 +1,21 @@
 class Tile{ //extends HTMLElement{ //lets not poke the goat
-    constructor() {
+    constructor(tile=null) {
         this.enemies = []
         // const hex = content.toString(16).padStart(2,"0")
-        this.elem = document.createElement("div");
+        if(tile){
+            this.elem = tile
+        }else{
+            this.elem = document.createElement("div")
+            this.elem.classList.add("tile")
+            this.elem.style.width = tilesize + "px"
+            grid.insertAdjacentElement("beforeend", this.elem)
+        }
         // this.elem.style.backgroundColor = "#" + hex + hex + hex
         // this.elem.style.backgroundColor = "hsl(${content}, 100%, 50%)"
-        // this.elem.style.backgroundColor = "hsl(" + content + ", 100%, 50%)"
 
+        // this.elem.style.backgroundColor = "hsl(" + content + ", 100%, 50%)"
         // console.log(hex)
         // console.log(this.elem.style.backgroundColor)
-        this.elem.classList.add("tile")
-        this.elem.style.width = tilesize + "px"
-        grid.insertAdjacentElement("beforeend", this.elem)
         this.calculateCorners();
 
     }
@@ -21,7 +25,7 @@ class Tile{ //extends HTMLElement{ //lets not poke the goat
     }
 
     getPos(){return [this.elem.offsetLeft, this.elem.offsetTop]}
-    getPosC(){return [this.elem.offsetLeft + parseInt(this.elem.style.width) / 2 , this.elem.offsetTop + parseInt(this.elem.style.width) / 2]}
+    getPosC(){return {x:this.elem.offsetLeft + parseInt(this.elem.style.width) / 2 ,y:this.elem.offsetTop + parseInt(this.elem.style.width) / 2}}
 
     getNeighbours(){
         const which =  tiles.indexOf(this)
@@ -54,9 +58,22 @@ class Tile{ //extends HTMLElement{ //lets not poke the goat
     }
 }
 
-class Stone extends Tile{
+class Spawn extends Tile{
+    constructor(tile) {
+        super(tile);
+        this.elem.classList.add("spawn")
+    }
+}
+
+class End extends Tile{
     constructor() {
         super();
+    }
+}
+
+class Stone extends Tile{
+    constructor(tile) {
+        super(tile);
         this.elem.classList.add("stone")
     }
 }
@@ -67,9 +84,10 @@ class Path extends Tile {
         this.enemies = []
         this.elem.classList.add("path")
         this.elem.addEventListener("mouseup",event=>{
-            // for (const road of this.getNeighbouringRoads()) {
-            //     road.elem.style.backgroundColor = "#aa0000"
-            // }
+            if(debug){
+            for (const road of this.getNeighbouringRoads()) {
+                road.elem.style.backgroundColor = "#aa0000"
+            }}
             if(buildmode === "SPAWN"){
                 new Enemy(this);
             }
@@ -90,7 +108,7 @@ class Buildable extends Tile{
         this.tower = null;
         this.elem.classList.add("grass")
         this.elem.addEventListener("mouseup",event=>{
-            if(buildmode === "DIG"){
+            if(buildmode === "DIG" && this.tower === null){
                 let newPath = new Path();
                 tiles[tiles.indexOf(this)] = newPath
                 event.target.replaceWith(newPath.elem)
@@ -102,7 +120,9 @@ class Buildable extends Tile{
             }
             else if(buildmode === "BUILD"){
                 if(this.tower === null){
-                    this.tower = new Tesla(this)
+                    const tt = turretmap.get(TURRETTYPE)
+
+                    this.tower = new tt(this)
                     towers.push(this.tower)
                 }
             }
@@ -114,9 +134,9 @@ class Enemy{
     constructor(spawnTile) {
         this.maxhealth = 100
         this.health = this.maxhealth
-        this.speed = 1.5
-        this.x = spawnTile.getPosC()[0]
-        this.y = spawnTile.getPosC()[1]
+        this.speed = 1
+        this.x = spawnTile.getPosC()["x"]
+        this.y = spawnTile.getPosC()["y"]
         this.getTarget(spawnTile)
         spawnTile.enemies.push(this)
 
@@ -124,6 +144,7 @@ class Enemy{
         this.elem.classList.add("enemy")
         anchor.insertAdjacentElement("beforeend", this.elem);
 
+        this.size ??= this.elem.offsetWidth
         this.hpbar = document.createElement("div")
         this.hpbar.classList.add("hpbar")
         this.hpbar.style.left = -this.elem.offsetWidth/2 + "px"
@@ -137,11 +158,13 @@ class Enemy{
 
     getTarget(currTile){
         const prevTile = this.currentTile
-        this.x = currTile.getPosC()[0]
-        this.y = currTile.getPosC()[1]
+        this.x = currTile.getPosC()["x"]
+        this.y = currTile.getPosC()["y"]
         if(this.currentTile !== undefined){
             prevTile.enemies.splice(prevTile.enemies.indexOf(this),1)
-            // prevTile.elem.innerText = prevTile.enemies.length
+            if(debug){
+                prevTile.elem.innerText = prevTile.enemies.length
+            }
         }
         this.currentTile = currTile;
 
@@ -155,6 +178,8 @@ class Enemy{
         this.targetTile.enemies.push(this)
         // this.targetTile.elem.innerText = this.targetTile.enemies.length
         this.target = this.targetTile.getPosC()
+        this.xdir = Math.sign(this.target["x"] - this.x)
+        this.ydir = Math.sign(this.target["y"] - this.y)
 
     }
 
@@ -171,9 +196,9 @@ class Enemy{
             return
         }
 
-        this.x += Math.round(Math.sign(this.target[0] - this.x) * this.speed * w/1000)
-        this.y += Math.round(Math.sign(this.target[1] - this.y) * this.speed * w/1000)
-        if (Math.abs(this.x - this.target[0])<this.speed && Math.abs(this.y - this.target[1])<this.speed){
+        this.x += Math.round(this.xdir * this.speed * tilesize/50)
+        this.y += Math.round(this.ydir * this.speed * tilesize/50)
+        if (distance(this,this.targetTile.getPosC()) <= this.speed * tilesize/50){
             this.getTarget(this.targetTile)
         }
         this.draw()
@@ -185,13 +210,32 @@ class Enemy{
         this.currentTile.enemies.splice(this.currentTile.enemies.indexOf(this),1)
         this.targetTile.enemies.splice(this.targetTile.enemies.indexOf(this),1)
     }
+
+    dmgNumbers(dmg){
+        if(dmg < 5){return}
+        const elem = document.createElement("div")
+        elem.classList.add("dmgnumber")
+        elem.innerText = dmg
+        elem.style.left = this.x + "px"
+        elem.style.top = this.y + "px"
+        anchor.insertAdjacentElement("beforeend", elem)
+        // console.log(window.getComputedStyle(elem).scale)
+        elem.style.fontSize = 1 + dmg/10000 + "vw"
+        console.log(elem.style.scale)
+        $(".dmgnumber").fadeOut(1000, function(){
+            $(this).remove();
+        })
+
+
+
+    }
 }
 
 class Tower {
     constructor(tile,dmg=50,cd=100,radius= 2, cost=100, charge=0) {
         this.tile = tile
-        this.x = tile.getPosC()[0]
-        this.y = tile.getPosC()[1]
+        this.x = tile.getPosC()["x"]
+        this.y = tile.getPosC()["y"]
         this.cost = cost
         this.charge = charge
         this.dmg = dmg
@@ -242,6 +286,10 @@ class Tower {
         return reached
     }
 
+    inRadius(enemy) {
+        return Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius
+    }
+
     draw(){
         this.elem.style.left = this.x - this.elem.offsetWidth/4 + "px"
         this.elem.style.top = this.y - this.elem.offsetHeight/4 + "px"
@@ -251,7 +299,10 @@ class Tower {
     }
 
     update(){}
-    attack(){}
+    attack(enemy){
+        enemy.health -= this.dmg
+        enemy.dmgNumbers(this.dmg)
+    }
 }
 
 class Gatling extends Tower {
@@ -284,7 +335,7 @@ class Gatling extends Tower {
 
         for (const enemy of reachableEnemies) {
             if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
-                facing(this.elem, enemies[0].x, enemies[0].y,-90) //TODO: probable optimization here
+                facing(this.elem, enemy.x + enemy.size/2, enemy.y + enemy.size/2,-90) //TODO: probable optimization here, only do when shooting?
                 if(this.timer === 0){
                     this.attack(enemy)
                 }
@@ -296,7 +347,7 @@ class Gatling extends Tower {
 
 
     attack(enemy) {
-        enemy.health -= this.dmg
+        super.attack(enemy)
         this.cannonelem.classList.remove("cannonpow")
         void this.elem.offsetWidth
         this.cannonelem.classList.add("cannonpow")
@@ -307,6 +358,7 @@ class Gatling extends Tower {
 class Tesla extends Tower{
     constructor(tile) {
         super(tile, 25, 100, 2, 250, 0)
+        this.maxtargets = 5
 
         this.elem = document.createElement("div")
         this.elem.classList.add("tesla")
@@ -320,42 +372,160 @@ class Tesla extends Tower{
     }
 
     update(){
-        if(this.timer){
-            this.timer -= 1 //TODO put this into the super class
-        }
+        if(this.timer){this.timer -= 1} //TODO put this into the super class
         if(enemies.length === 0){return}
+
         const reachableEnemies = this.tilesReached.flatMap(tile => {return tile.enemies})
         if(reachableEnemies.length === 0){return}
 
         if(this.timer === 0){
-            for (const enemy of reachableEnemies) { //TODO extract into helper func?
-                if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
+            // for (const enemy of reachableEnemies) {
+            for (let i = 0; i < this.maxtargets && i < reachableEnemies.length; i++) {
+                const enemy = reachableEnemies[i]
+                if (this.inRadius(enemy)){
                     this.attack(enemy)
                 }
             }
-            this.timer = this.cd //TODO put this into the super class
+            this.timer = this.cd
         }
-        this.elem.innerText = this.timer
+
+        if(debug){
+            this.elem.innerText = this.timer
+        }
         // this.draw()
     }
 
     attack(enemy) {
-        enemy.health -= this.dmg
+        super.attack(enemy)
         const lightning = document.createElement("div")
-        const length = Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2);
+        const length = distance(enemy,this)
 
-        lightning.classList.add("lightning")
+        lightning.classList = ["lightning"]
         lightning.style.left = this.x +"px"
         lightning.style.top = this.y + "px"
         lightning.style.width = "0.2vw"
         lightning.style.transformOrigin = "50% 0%"
         lightning.style.height = length + "px"
         anchor.insertAdjacentElement("beforeend", lightning)
-        facing(lightning, enemy.x, enemy.y, 90)
+        facing(lightning, enemy.x + enemy.size/2, enemy.y + enemy.size/2, 90)
 
         $(".lightning").fadeOut(1000, function(){
             $(this).remove();
         })
 
+    }
+}
+
+class Cannon extends Tower {
+    constructor(tile) {
+        super(tile, 100, 200, 3, 500, 0)
+
+        this.elem = document.createElement("div")
+        this.elem.classList.add("tower")
+        this.elem.style.width = this.turretsize*1.5 + "px"
+        this.elem.style.height = this.turretsize*1.5 + "px"
+        this.elem.style.borderRadius = this.turretsize*1.5 + "px"
+
+        this.cannonelem = document.createElement("div");
+        this.cannonelem.classList.add("cannon")
+        this.cannonelem.style.width = this.turretsize*1.5 + "px"
+        this.cannonelem.style.height = this.turretsize/3 + "px"
+
+        this.elem.insertAdjacentElement("beforeend", this.cannonelem)
+        anchor.insertAdjacentElement("beforeend", this.elem);
+        this.draw()
+    }
+
+    update(){
+        if(this.timer){
+            this.timer -= 1
+        }
+        if(enemies.length === 0){return}
+        const reachableEnemies = this.tilesReached.flatMap(tile => {return tile.enemies})
+        if(reachableEnemies.length === 0){return}
+
+        for (const enemy of reachableEnemies) {
+            if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
+                facing(this.elem, enemy.x, enemy.y,-90) //TODO: probable optimization here, only do when shooting?
+                if(this.timer === 0){
+                    this.attack(enemy)
+                }
+                break
+            }
+        }
+        // this.draw()
+    }
+
+
+    attack(enemy) {
+        super.attack(enemy)
+        this.cannonelem.classList.remove("cannonpow")
+        void this.elem.offsetWidth
+        this.cannonelem.classList.add("cannonpow")
+        this.timer = this.cd
+    }
+}
+
+class Laser extends Tower {
+    constructor(tile) {
+        super(tile, 1, 2, 2, 250, 0)
+
+        this.elem = document.createElement("div")
+        this.elem.classList.add("tower")
+        this.elem.backgroundColor = "#571313"
+        this.elem.style.width = this.turretsize + "px"
+        this.elem.style.height = this.turretsize + "px"
+        this.elem.style.borderRadius = this.turretsize + "px"
+
+        this.cannonelem = document.createElement("div");
+        this.cannonelem.classList.add("cannon")
+        this.cannonelem.style.width = this.turretsize + "px"
+        this.cannonelem.style.height = this.turretsize/3 + "px"
+
+        this.elem.insertAdjacentElement("beforeend", this.cannonelem)
+        anchor.insertAdjacentElement("beforeend", this.elem);
+        this.draw()
+    }
+
+    update(){
+        if(this.timer){
+            this.timer -= 1
+        }
+        if(enemies.length === 0){return}
+        const reachableEnemies = this.tilesReached.flatMap(tile => {return tile.enemies})
+        if(reachableEnemies.length === 0){return}
+
+        for (const enemy of reachableEnemies) {
+            if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
+                facing(this.elem, enemy.x, enemy.y,-90) //TODO: probable optimization here, only do when shooting?
+                if(this.timer === 0){
+                    this.attack(enemy)
+                    this.timer = this.cd;
+                }
+                break
+            }
+        }
+        // this.draw()
+    }
+
+
+    attack(enemy) {
+        super.attack(enemy)
+        const beam = document.createElement("div")
+        const length = distance(enemy,this)
+
+        beam.classList = ["lightning"]
+        beam.style.backgroundColor = "#c02c2c"
+        beam.style.left = this.x +"px"
+        beam.style.top = this.y + "px"
+        beam.style.width = "0.2vw"
+        beam.style.transformOrigin = "50% 0%"
+        beam.style.height = length + "px"
+        anchor.insertAdjacentElement("beforebegin", beam)
+        facing(beam, enemy.x + enemy.size/2, enemy.y + enemy.size/2, 90)
+
+        $(".lightning").fadeOut(10, function(){
+            $(this).remove();
+        })
     }
 }
