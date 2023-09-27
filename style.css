@@ -35,6 +35,10 @@
 
 }
 
+.label, div{
+    color: white;
+}
+
 .spawn{
     background-color: #c94580
 }
@@ -113,53 +117,24 @@ body{
     background-color: #34c8fc;
 }
 
-@keyframes float {
-    0%{
-        transform: translateY(0px);
-    }
-    100% {
-        transform: translateY(-25px);
-    }
-}
-
-.dmgnumber{
-    font-size: 1vw;
-    color: #ff0000;
-    font-weight: bold;
-    opacity: 100;
-    z-index: 100;
-    position: absolute;
-    pointer-events: none;
-    user-select: none;
-    text-shadow : 0px 0px 5px black;
-    text-align : center;
-    animation: float 1s linear 0s 1 normal;
-}
-
-@keyframes cannonpow {
-    50%{
-        /*width: 1vw;*/
-        /*height: 0.8vw;*/
-        border-radius: 2vw;
-        scale: 150%;
-    }
-    0%,100% {
-        border-radius: 0px;
-        /*width: 2vw;*/
-        /*height: 0.3vw;*/
-    }
-
-}
-
-.cannonpow{
-    animation: cannonpow 0.1s linear 0s 1 normal;
-}
-
 .hpbar{
     position: absolute;
     width: 2vw;
     height: 0.2vw;
     background-color: #ff0000;
+}
+
+.coinpickup{
+    --coinsize: 1.5vw;
+    background-color: darkgoldenrod;
+    width: var(--coinsize);
+    height: var(--coinsize);
+    position: absolute;
+    /*pointer-events: none; DISABLES MOUSE EVENTS OH MY GOD*/
+    user-select: none;
+    border-radius: var(--coinsize);
+    z-index: 99;
+
 }
 
 #ui{

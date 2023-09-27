@@ -1,19 +1,33 @@
-const size = 15
-const turrettypes = [Gatling, Tesla, Cannon, Laser]
-const anchor = document.getElementById("anchor")
-const grid = document.getElementById("grid")
+const size = 12
+let lives = 20
+let gold = 500
 const w = window.innerWidth
 const h = window.innerHeight
+const tilesize = Math.min(w / size, h / size)
+const grid = document.getElementById("grid")
+const anchor = document.getElementById("anchor")
+
 const tiles = [];
 const enemies = [];
 const towers = [];
+
+let inWave = false;
 let debug = false;
 document.getElementById("coords").style.color = "white"
 
 const buildmodes = ["DIG","BUILD","SPAWN"]
 let buildmode = buildmodes[0]
 
-const tilesize = Math.min(w / size, h / size)
+const turrettypes = [Gatling, Tesla, Cannon, Laser]
+turretcosts = new Map(turrettypes.map( item => [item.name, new item(new Tile()).cost])); //map of wall class names to wall classes
+console.log(turretcosts)
+
+tiles.length = 0;
+towers.length = 0
+grid.innerHTML = ""
+anchor.innerHTML = ""
+
+
 grid.style.gridTemplateColumns = "repeat(" + size + ", auto)"
 for (let i = 0; i < size; i++) {
     // tiles.push([])
@@ -36,14 +50,39 @@ for (let i = 0; i < size; i++) {
 
 
 const chosen = choice(tiles.filter(tile=>tile instanceof Buildable));
-chosen.tower = new Laser(chosen)
+chosen.tower = new Gatling(chosen)
 towers.push(chosen.tower)
 
-// const spawn = new Spawn()
 const edges = tiles.filter(tile=>tile.num < size || tile.num > size*(size-1) || tile.num % size === 0 || tile.num % size === size-1)
-console.log(edges.map(tile=>tile.num))
 let spawn = choice(edges)
+
+
+//make sure the goal isn't next to the spawn
+const edges2 = edges.filter(tile=>tile.num !== spawn.num && tile.num !== spawn.num+1 && tile.num !== spawn.num-1 && tile.num !== spawn.num+size && tile.num !== spawn.num-size)
+console.log("end cannot be " + edges.filter(tile=>!edges2.includes(tile)).map(tile=>tile.num))
+
+let goal = choice(edges2)
+let which = tiles.indexOf(spawn)
+
 spawn = new Spawn(spawn.elem)
+tiles[which] = spawn //TODO do this better
+
+which = tiles.indexOf(goal)
+goal = new End(goal.elem)
+tiles[which] = goal //TODO do this better
+console.log(goal.constructor.name)
+console.log(spawn.constructor.name)
+console.log(goal instanceof Buildable)
+
+redrawUI()
+function redrawUI(){
+    document.getElementById("wavebutton").disabled = inWave || spawn.distFromEnd==null || spawn.distFromEnd === Infinity
+    document.getElementById("spawnbutton").disabled = inWave || spawn.distFromEnd==null || spawn.distFromEnd === Infinity
+    document.getElementById("buildbutton").disabled = inWave
+    document.getElementById("digbutton").disabled = inWave
+    document.getElementById("money").innerText = gold
+    document.getElementById("lives").innerText = lives
+}
 
 
 
@@ -74,11 +113,50 @@ document.getElementById("buildbutton").addEventListener("mouseup",event=>{
     }
 })
 
+document.getElementById("coinspawn").addEventListener("mouseup",event=>{
+    const tile = choice(tiles);
+    const {x,y} = tile.getPosC()
+    let coin = new CoinPickup(x,y,1,10000)
+    coin.elem.style.setProperty("--xpos",Math.round(Math.random()*50-25) + "px")
+    coin.elem.style.setProperty("--ypos",Math.random()*50-25 + "px")
+    console.log(coin.elem.style.getPropertyValue("--xpos"))
+    coin.elem.classList.add("drop")
+    console.log(coin)
+
+})
+
 document.getElementById("spawnbutton").addEventListener("mouseup",event=>{
     buildmode = buildmodes[2]
+    new Alien()
     for (const tower of towers) {
         tower.drawRadius(false);
     }
+    redrawUI()
+})
+
+function spawnerfunc(howmany=10){
+    counter += 1
+    new Alien()
+    // new Enemy(spawn)
+    if(counter >= howmany){
+        counter = 0
+        clearInterval(spawner)
+    }
+}
+
+let counter = 0
+let wavenumber = 1
+let spawner = undefined
+
+document.getElementById("wavebutton").addEventListener("mouseup",event=>{
+    clearInterval(spawner)
+    inWave = true
+    spawner = setInterval(spawnerfunc,500, wavenumber*2)
+    wavenumber += 1
+    for (const tower of towers) {
+        tower.drawRadius(false);
+    }
+    redrawUI()
 })
 
 document.getElementById("debugbutton").addEventListener("mouseup",event=>{
@@ -94,17 +172,13 @@ document.getElementById("debugbutton").addEventListener("mouseup",event=>{
 
 turretsel = document.getElementById("turrettype")
 const turretmap =  new Map(turrettypes.map( item => [item.name, item])); //map of wall class names to wall classes
-console.log(turretmap)
 turretmap.forEach((v,k)=>{ //why are k,v flipped?
-    const opt = document.createElement("option");
+    const opt = document.createElement("option"); //TODO hold on i am just doing i.name = i.name
     opt.value = k;
-    console.log(k, v.name)
-    opt.innerHTML = v.name
+    opt.innerHTML = v.name;
     turretsel.appendChild(opt); //add each wall type to the wall type selector
 })
 let TURRETTYPE = turretsel.value;
-console.log(typeof TURRETTYPE)
-console.log(TURRETTYPE)
 
 turretsel.addEventListener("change", function(event) {
     TURRETTYPE = event.target.value;
@@ -116,3 +190,5 @@ window.onmousemove = function(event){
 }
 
 setInterval(main,1000/60)
+
+

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>My TD</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="anims.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </head>
 <body>
@@ -12,14 +13,24 @@
         <div id="buttons">
             <button id="digbutton">Dig</button>
             <button id="buildbutton">Turret</button>
+            <button id="coinspawn">Spawn Coin</button>
             <label for="turrettype">Turret type</label>
             <select name="turrettype" id="turrettype">
             </select>
             <br>
 <!--            <button id="upgradebutton">Upgrade</button>-->
-            <button id="spawnbutton">Spawn Enemy</button>
+            <button id="spawnbutton" disabled>Spawn Enemy</button>
+            <button id="wavebutton" disabled>Spawn Wave</button>
             <button id="debugbutton">Debug</button>
+            <br>
+            <label for="coords">Coords: </label>
             <div id="coords">hi</div>
+            <br>
+            <label for="money">Money: </label>
+            <div id="money"></div>
+            <br>
+            <label for="lives">Lives: </label>
+            <div id="lives"></div>
 
         </div>
 

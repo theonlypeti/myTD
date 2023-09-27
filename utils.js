@@ -14,3 +14,18 @@ function facing(elem,x=0,y=0,offset=0){
 function distance(a,b){
     return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
 }
+
+function floatText(text, x, y, fontsize, fadeOut=1000) {
+    const elem = document.createElement("div")
+    elem.classList.add("floatup")
+    elem.style.setProperty("--animlength", fadeOut + "ms")
+    elem.innerText = text
+    elem.style.left = x + "px"
+    elem.style.top = y + "px"
+    anchor.insertAdjacentElement("beforeend", elem)
+    // console.log(window.getComputedStyle(elem).scale)
+    elem.style.fontSize = fontsize
+    $(".floatup").fadeOut(fadeOut, function () {
+        $(this).remove();
+    })
+}

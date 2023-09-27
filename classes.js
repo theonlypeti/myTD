@@ -1,3 +1,4 @@
+
 class Tile{ //extends HTMLElement{ //lets not poke the goat
     constructor(tile=null) {
         this.enemies = []
@@ -44,6 +45,7 @@ class Tile{ //extends HTMLElement{ //lets not poke the goat
 
     getCardinals(){
         const which =  tiles.indexOf(this)
+        // if(debug){console.log(which)}
         const neighbours = []
         for (let i = -1; i < 2; i++) {
             const [x,y] = divmod(which, size)
@@ -58,18 +60,6 @@ class Tile{ //extends HTMLElement{ //lets not poke the goat
     }
 }
 
-class Spawn extends Tile{
-    constructor(tile) {
-        super(tile);
-        this.elem.classList.add("spawn")
-    }
-}
-
-class End extends Tile{
-    constructor() {
-        super();
-    }
-}
 
 class Stone extends Tile{
     constructor(tile) {
@@ -79,27 +69,76 @@ class Stone extends Tile{
 }
 
 class Path extends Tile {
-    constructor() {
-        super();
+    constructor(elem) {
+        super(elem);
         this.enemies = []
         this.elem.classList.add("path")
-        this.elem.addEventListener("mouseup",event=>{
-            if(debug){
-            for (const road of this.getNeighbouringRoads()) {
-                road.elem.style.backgroundColor = "#aa0000"
-            }}
-            if(buildmode === "SPAWN"){
-                new Enemy(this);
+        this.distFromEnd = 0
+        this.elem.addEventListener("mouseup", event => {
+            if (debug) {
+                for (const road of this.getNeighbouringRoads()) {
+                    road.elem.style.backgroundColor = "#aa0000"
+                }
+            }
+            if (buildmode === "SPAWN") {
+                new Alien(this);
             }
         })
     }
 
-    getNeighbouringRoads(){
-        return this.getCardinals().filter(x=>{return x instanceof Path})
+    getNeighbouringRoads() {
+        return this.getCardinals().filter(x => {
+            return x instanceof Path
+        })
     }
 
+    // findDistanceFromEnd() {
+    //     this.visited = true
+    //     if (this.distFromEnd) {
+    //         if(debug){this.elem.innerText = "dist: " + this.distFromEnd}
+    //         return this.distFromEnd
+    //     }
+    //
+    //     const neighbours = this.getNeighbouringRoads()
+    //     if (neighbours.length === 0) {
+    //         this.distFromEnd = 0
+    //         console.log("no neighbours")
+    //         return 0
+    //     }
+    //     else if (neighbours.filter(x => {return x instanceof End}).length > 0) {
+    //         this.distFromEnd = 1
+    //         console.log("end found") //TODO probably not needed
+    //     }
+    //     else{
+    //         // this.distFromEnd = Math.min(...neighbours.filter(x=>{return !x.visited}).map(x => {
+    //         this.distFromEnd = Math.min(...neighbours.filter(x=>{return (x.distFromEnd > this.distFromEnd) || !x.visited}).map(x => {
+    //             return x.findDistanceFromEnd()
+    //         })) + 1
+    //     }
+    //     if(debug){this.elem.innerText = "dist: " + this.distFromEnd}
+    //     return this.distFromEnd
+    // }
 
-
+    floodFill(distance=0) {
+        const smaller = Math.min(distance, this.distFromEnd)
+        if (smaller < this.distFromEnd) {
+            this.distFromEnd = smaller
+            if(debug){this.elem.innerText = "dist: " + this.distFromEnd}
+        }
+        else{
+            return
+        }
+        const neighbours = this.getNeighbouringRoads();
+        // if (neighbours.filter(x => {return x instanceof Spawn}).length > 0) {
+        //     // return
+        //     void 0;
+        // }
+        // else{
+            for (const neighbour of neighbours) {
+                neighbour.floodFill(distance+1)
+            }
+        }
+    // }
 }
 
 class Buildable extends Tile{
@@ -108,37 +147,81 @@ class Buildable extends Tile{
         this.tower = null;
         this.elem.classList.add("grass")
         this.elem.addEventListener("mouseup",event=>{
-            if(buildmode === "DIG" && this.tower === null){
+            if(buildmode === "DIG" && this.tower === null && !inWave){
                 let newPath = new Path();
+                newPath.num = this.num
                 tiles[tiles.indexOf(this)] = newPath
                 event.target.replaceWith(newPath.elem)
                 newPath.calculateCorners()
+                tiles.filter(tile=>tile instanceof Path).forEach(tile=>{
+                    tile.distFromEnd = Infinity
+                })
+                goal.floodFill()
+                if (spawn.distFromEnd!==Infinity && spawn.distFromEnd!=null){
+                    console.log(spawn.distFromEnd)
+                    document.getElementById("spawnbutton").disabled = false
+                    document.getElementById("wavebutton").disabled = false
+                }
+
                 for (const tower of towers) {
                     tower.tilesReached = tower.calculateCircle(tower.x,tower.y,tower.radius)
-                    console.log(tower.tilesReached)
                 }
             }
             else if(buildmode === "BUILD"){
+                const fontsize = "1.8vw"
                 if(this.tower === null){
                     const tt = turretmap.get(TURRETTYPE)
-
-                    this.tower = new tt(this)
-                    towers.push(this.tower)
+                    const cost = turretcosts.get(TURRETTYPE);
+                    if(gold >= cost){
+                        this.tower = new tt(this)
+                        towers.push(this.tower)
+                        gold -= cost
+                        redrawUI()
+                    }
+                    else{
+                        floatText(`Not enough gold. ${cost-gold} needed.`, this.getPosC()["x"], this.getPosC()["y"], fontsize,2000)
+                    }
+                }else{
+                    // this.tower.drawRadius(false)
+                    // this.tower.elem.remove()
+                    // towers.splice(towers.indexOf(this.tower),1)
+                    // delete this.tower
+                    floatText("Already a tower here", this.getPosC()["x"], this.getPosC()["y"], fontsize,2000)
                 }
             }
         })
     }
 }
 
+class Spawn extends Path{
+    constructor(tile) {
+        const newTile = tile.cloneNode(true);
+        tile.replaceWith(newTile);
+        super(newTile);
+        this.elem.classList = ["tile spawn"]
+        this.distFromEnd = Infinity
+    }
+}
+
+class End extends Path{
+    constructor(tile) {
+        const newTile = tile.cloneNode(true); //prevent cloning of event listeners and digging of end or spawn
+        tile.replaceWith(newTile);
+        super(newTile);
+        this.elem.classList = ["tile end"]
+        this.distFromEnd = 0
+    }
+}
+
 class Enemy{
-    constructor(spawnTile) {
-        this.maxhealth = 100
+    constructor(spawnTile=spawn, maxhealth=100, speed=1, reward=5) {
+        this.maxhealth = maxhealth
         this.health = this.maxhealth
-        this.speed = 1
+        this.speed = speed
+        this.reward = reward
         this.x = spawnTile.getPosC()["x"]
         this.y = spawnTile.getPosC()["y"]
         this.getTarget(spawnTile)
-        spawnTile.enemies.push(this)
 
         this.elem = document.createElement("div")
         this.elem.classList.add("enemy")
@@ -157,14 +240,22 @@ class Enemy{
     }
 
     getTarget(currTile){
+        if(currTile === goal){
+            this.kill()
+            lives -= 1
+            redrawUI()
+            return
+        }
         const prevTile = this.currentTile
+
         this.x = currTile.getPosC()["x"]
         this.y = currTile.getPosC()["y"]
-        if(this.currentTile !== undefined){
+        if(this.currentTile !== undefined){ //TODO LOOK INTO THIS
             prevTile.enemies.splice(prevTile.enemies.indexOf(this),1)
             if(debug){
                 prevTile.elem.innerText = prevTile.enemies.length
             }
+
         }
         this.currentTile = currTile;
 
@@ -173,10 +264,12 @@ class Enemy{
             this.targetTile = prevTile
         }
         else{
-            this.targetTile = choice(possibleTiles);
+            this.targetTile = possibleTiles.reduce((a,b) => {return a.distFromEnd < b.distFromEnd ? a : b})
         }
-        this.targetTile.enemies.push(this)
-        // this.targetTile.elem.innerText = this.targetTile.enemies.length
+        this.currentTile.enemies.push(this)
+        // console.log(this.currentTile)
+        if(debug){this.currentTile.elem.innerText = this.currentTile.enemies.length}
+
         this.target = this.targetTile.getPosC()
         this.xdir = Math.sign(this.target["x"] - this.x)
         this.ydir = Math.sign(this.target["y"] - this.y)
@@ -192,8 +285,9 @@ class Enemy{
     update(){
         // move towards target
         if(this.health <= 0){
+            gold += this.reward
             this.kill()
-            return
+            new CoinPickup(this.x,this.y,this.reward,10000)
         }
 
         this.x += Math.round(this.xdir * this.speed * tilesize/50)
@@ -209,40 +303,38 @@ class Enemy{
         enemies.splice(enemies.indexOf(this),1)
         this.currentTile.enemies.splice(this.currentTile.enemies.indexOf(this),1)
         this.targetTile.enemies.splice(this.targetTile.enemies.indexOf(this),1)
+        delete this
+        inWave = Boolean(enemies.length)
+
+        redrawUI()
+
     }
 
     dmgNumbers(dmg){
         if(dmg < 5){return}
-        const elem = document.createElement("div")
-        elem.classList.add("dmgnumber")
-        elem.innerText = dmg
-        elem.style.left = this.x + "px"
-        elem.style.top = this.y + "px"
-        anchor.insertAdjacentElement("beforeend", elem)
-        // console.log(window.getComputedStyle(elem).scale)
-        elem.style.fontSize = 1 + dmg/10000 + "vw"
-        console.log(elem.style.scale)
-        $(".dmgnumber").fadeOut(1000, function(){
-            $(this).remove();
-        })
+        floatText(dmg, this.x, this.y, 1 + dmg / 10000 + "vw");
+    }
+}
 
-
-
+class Alien extends Enemy{
+    constructor(tile=spawn) {
+        super(tile, 100, 1, 5)
     }
 }
 
 class Tower {
     constructor(tile,dmg=50,cd=100,radius= 2, cost=100, charge=0) {
         this.tile = tile
+        this.cost = cost
         this.x = tile.getPosC()["x"]
         this.y = tile.getPosC()["y"]
-        this.cost = cost
         this.charge = charge
         this.dmg = dmg
         this.cd = cd
         this.timer = 0
         this.radius = radius * tilesize
         this.turretsize = tilesize / 3;
+        // gold -= this.cost //this would make autogenerated turrets remove money too
 
         this.radiuscircle = document.createElement("div")
         this.radiuscircle.classList.add("radiuscircle")
@@ -298,7 +390,11 @@ class Tower {
         }
     }
 
-    update(){}
+    update(){
+        if(debug){
+            this.elem.innerText = this.timer
+        }
+    }
     attack(enemy){
         enemy.health -= this.dmg
         enemy.dmgNumbers(this.dmg)
@@ -306,7 +402,12 @@ class Tower {
 }
 
 class Gatling extends Tower {
+
+    // static getCost() {
+    //     return 150;
+    // }
     constructor(tile) {
+        // super(tile, 10, 20, 2, Gatling.getCost(), 0)
         super(tile, 10, 20, 2, 100, 0)
 
         this.elem = document.createElement("div")
@@ -326,6 +427,8 @@ class Gatling extends Tower {
     }
 
     update(){
+        super.update()
+
         if(this.timer){
             this.timer -= 1
         }
@@ -348,6 +451,9 @@ class Gatling extends Tower {
 
     attack(enemy) {
         super.attack(enemy)
+        const pew = new Audio('sounds/ptoo.mp3');
+        pew.currentTime = 1;
+        pew.play()
         this.cannonelem.classList.remove("cannonpow")
         void this.elem.offsetWidth
         this.cannonelem.classList.add("cannonpow")
@@ -357,6 +463,7 @@ class Gatling extends Tower {
 
 class Tesla extends Tower{
     constructor(tile) {
+
         super(tile, 25, 100, 2, 250, 0)
         this.maxtargets = 5
 
@@ -372,16 +479,19 @@ class Tesla extends Tower{
     }
 
     update(){
+        super.update()
         if(this.timer){this.timer -= 1} //TODO put this into the super class
         if(enemies.length === 0){return}
 
+        // const reachableEnemies = new Set(this.tilesReached.flatMap(tile => {return tile.enemies}))
         const reachableEnemies = this.tilesReached.flatMap(tile => {return tile.enemies})
         if(reachableEnemies.length === 0){return}
 
         if(this.timer === 0){
             // for (const enemy of reachableEnemies) {
             for (let i = 0; i < this.maxtargets && i < reachableEnemies.length; i++) {
-                const enemy = reachableEnemies[i]
+                // const enemy = Array.from(reachableEnemies)[0] //TODO this is bad i should probably not put enemies in two tiles at once
+                const enemy = reachableEnemies[i] //TODO this is bad i should probably not put enemies in two tiles at once
                 if (this.inRadius(enemy)){
                     this.attack(enemy)
                 }
@@ -389,14 +499,15 @@ class Tesla extends Tower{
             this.timer = this.cd
         }
 
-        if(debug){
-            this.elem.innerText = this.timer
-        }
+
         // this.draw()
     }
 
     attack(enemy) {
         super.attack(enemy)
+        const zap = new Audio('sounds/zap.mp3');
+        zap.currentTime = 0.5;
+        zap.play()
         const lightning = document.createElement("div")
         const length = distance(enemy,this)
 
@@ -437,6 +548,7 @@ class Cannon extends Tower {
     }
 
     update(){
+        super.update()
         if(this.timer){
             this.timer -= 1
         }
@@ -459,6 +571,9 @@ class Cannon extends Tower {
 
     attack(enemy) {
         super.attack(enemy)
+        const boom = new Audio('sounds/boom.mp3');
+        boom.currentTime = 1;
+        boom.play()
         this.cannonelem.classList.remove("cannonpow")
         void this.elem.offsetWidth
         this.cannonelem.classList.add("cannonpow")
@@ -488,6 +603,7 @@ class Laser extends Tower {
     }
 
     update(){
+        super.update()
         if(this.timer){
             this.timer -= 1
         }
@@ -513,6 +629,9 @@ class Laser extends Tower {
         super.attack(enemy)
         const beam = document.createElement("div")
         const length = distance(enemy,this)
+        const laser = new Audio('sounds/laser.mp3');
+        laser.currentTime = 1;
+        laser.play()
 
         beam.classList = ["lightning"]
         beam.style.backgroundColor = "#c02c2c"
@@ -527,5 +646,52 @@ class Laser extends Tower {
         $(".lightning").fadeOut(10, function(){
             $(this).remove();
         })
+    }
+}
+
+class CoinPickup{
+    constructor(x,y,value,timeout) {
+        this.x = x;
+        this.y =y;
+        this.value = value;
+        this.timeout = timeout;
+
+        this.elem = document.createElement("div")
+        this.elem.myparent = this
+        this.elem.classList = ["coinpickup drop"]
+
+        const dropradius = 50
+        this.elem.style.setProperty("--xpos",(Math.random()*dropradius-dropradius/2) + "px")
+        this.elem.style.setProperty("--ypos",(Math.random()*dropradius-dropradius/2) + "px")
+
+        grid.insertAdjacentElement("beforebegin", this.elem);
+        this.draw()
+
+        this.elem.addEventListener("mouseenter", event=>{
+            gold += this.value
+            redrawUI()
+            $(this.elem).stop().animate({opacity:'0'});
+            $(this.elem).fadeOut(300, function (elem) {
+                // $(this).remove();
+                // console.log($(this))
+                $(this)[0].myparent.kill();
+                // $(this).kill();
+
+            })
+            this.elem.classList.add("pickup")
+        })
+        $(this.elem).fadeOut(this.timeout, function () {
+            $(this)[0].myparent.kill();
+        })
+    }
+
+    kill(){
+        this.elem.remove()
+        delete this
+    }
+
+    draw(){
+        this.elem.style.left = this.x + "px"
+        this.elem.style.top = this.y + "px"
     }
 }
