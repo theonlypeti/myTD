@@ -141,3 +141,10 @@ body{
     grid-template-columns: auto auto;
     display: inline-grid;
 }
+
+.roadblock{
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    background-color: #422c09;
+}

@@ -5,10 +5,21 @@ function choice(Array) {
 }
 
 function facing(elem,x=0,y=0,offset=0){
-    const ex = parseInt(window.getComputedStyle(elem).left)
-    const ey = parseInt(window.getComputedStyle(elem).top)
+    const off = getOffset(elem) //i truly dont like this
+    const ex = off.left
+    const ey = off.top
+    console.log(ex,ey)
+    console.log(x,y)
     // elem.style.height = Math.min(100,Math.sqrt(Math.pow(parseInt(elem.style.top)-y,2) + Math.pow(parseInt(elem.style.left) - x,2))) + "px";
     elem.style.rotate = Math.atan2(ey - y, ex - x) * 180 / Math.PI + offset + "deg"
+}
+
+function getOffset(el) {
+    const rect = el.getBoundingClientRect();
+    return {
+        left: rect.left + window.scrollX,
+        top: rect.top + window.scrollY
+    };
 }
 
 function distance(a,b){

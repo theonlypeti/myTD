@@ -1,3 +1,4 @@
+const fontsize = "1.8vw"
 
 class Tile{ //extends HTMLElement{ //lets not poke the goat
     constructor(tile=null) {
@@ -82,6 +83,24 @@ class Path extends Tile {
             }
             if (buildmode === "SPAWN") {
                 new Alien(this);
+            }
+            else if(buildmode === "BLOCK"){ //TODO these are just ugly solutions make a function that does this
+                if(gold >= Roadblock.cost){
+                    gold -= Roadblock.cost
+                    const rb = new Roadblock(this.elem);
+                    rb.num = this.num
+                    tiles[tiles.indexOf(this)] = rb
+                    event.target.replaceWith(rb.elem)
+                    rb.calculateCorners()
+                    tiles.filter(tile=>tile instanceof Path).forEach(tile=>{
+                        tile.distFromEnd = Infinity
+                    })
+                    goal.floodFill()
+                    redrawUI()
+                }
+                else{
+                    floatText(`Not enough gold. ${Roadblock.cost-gold} needed.`, this.getPosC()["x"], this.getPosC()["y"], fontsize,2000)
+                }
             }
         })
     }
@@ -168,7 +187,6 @@ class Buildable extends Tile{
                 }
             }
             else if(buildmode === "BUILD"){
-                const fontsize = "1.8vw"
                 if(this.tower === null){
                     const tt = turretmap.get(TURRETTYPE)
                     const cost = turretcosts.get(TURRETTYPE);
@@ -383,8 +401,10 @@ class Tower {
     }
 
     draw(){
-        this.elem.style.left = this.x - this.elem.offsetWidth/4 + "px"
-        this.elem.style.top = this.y - this.elem.offsetHeight/4 + "px"
+        // this.elem.style.left = this.x - this.elem.offsetWidth/4 + "px"
+        // this.elem.style.top = this.y - this.elem.offsetHeight/4 + "px"
+        this.elem.style.left = "25%"
+        this.elem.style.top = "25%"
         if (buildmode === "BUILD"){
             this.drawRadius(true)
         }
@@ -412,17 +432,19 @@ class Gatling extends Tower {
 
         this.elem = document.createElement("div")
         this.elem.classList.add("tower")
-        this.elem.style.width = this.turretsize + "px"
-        this.elem.style.height = this.turretsize + "px"
-        this.elem.style.borderRadius = this.turretsize + "px"
+        this.elem.style.width = "40%"
+        // this.elem.style.width = this.turretsize + "px"
+        this.elem.style.height = "40%"
+        this.elem.style.borderRadius = "50%"
 
         this.cannonelem = document.createElement("div");
         this.cannonelem.classList.add("cannon")
-        this.cannonelem.style.width = this.turretsize + "px"
-        this.cannonelem.style.height = this.turretsize/8 + "px"
+        this.cannonelem.style.width = "80%"
+        this.cannonelem.style.height = "15%"
+        this.cannonelem.style.left = "12%"
 
+        tile.elem.insertAdjacentElement("beforeend", this.elem);
         this.elem.insertAdjacentElement("beforeend", this.cannonelem)
-        anchor.insertAdjacentElement("beforeend", this.elem);
         this.draw()
     }
 
@@ -437,9 +459,9 @@ class Gatling extends Tower {
         if(reachableEnemies.length === 0){return}
 
         for (const enemy of reachableEnemies) {
-            if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
-                facing(this.elem, enemy.x + enemy.size/2, enemy.y + enemy.size/2,-90) //TODO: probable optimization here, only do when shooting?
-                if(this.timer === 0){
+            if(this.timer === 0){
+                if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
+                    facing(this.elem, enemy.x + enemy.size/2, enemy.y + enemy.size/2,-90)
                     this.attack(enemy)
                 }
                 break
@@ -451,9 +473,11 @@ class Gatling extends Tower {
 
     attack(enemy) {
         super.attack(enemy)
-        const pew = new Audio('sounds/ptoo.mp3');
-        pew.currentTime = 1;
-        pew.play()
+        if(sound){
+            const pew = new Audio('sounds/ptoo.mp3');
+            pew.currentTime = 1;
+            pew.play()
+        }
         this.cannonelem.classList.remove("cannonpow")
         void this.elem.offsetWidth
         this.cannonelem.classList.add("cannonpow")
@@ -469,11 +493,11 @@ class Tesla extends Tower{
 
         this.elem = document.createElement("div")
         this.elem.classList.add("tesla")
-        this.elem.style.width = this.turretsize + "px"
-        this.elem.style.height = this.turretsize + "px"
-        this.elem.style.borderRadius = this.turretsize + "px"
+        this.elem.style.width = "40%"
+        this.elem.style.height = "40%"
+        this.elem.style.borderRadius = "50%"
 
-        anchor.insertAdjacentElement("beforeend", this.elem);
+        tile.elem.insertAdjacentElement("beforeend", this.elem);
         this.draw()
 
     }
@@ -488,11 +512,12 @@ class Tesla extends Tower{
         if(reachableEnemies.length === 0){return}
 
         if(this.timer === 0){
+            let targets = 0
             // for (const enemy of reachableEnemies) {
-            for (let i = 0; i < this.maxtargets && i < reachableEnemies.length; i++) {
-                // const enemy = Array.from(reachableEnemies)[0] //TODO this is bad i should probably not put enemies in two tiles at once
+            for (let i = 0; targets < this.maxtargets && i < reachableEnemies.length; i++) {
                 const enemy = reachableEnemies[i] //TODO this is bad i should probably not put enemies in two tiles at once
                 if (this.inRadius(enemy)){
+                    targets++
                     this.attack(enemy)
                 }
             }
@@ -505,9 +530,11 @@ class Tesla extends Tower{
 
     attack(enemy) {
         super.attack(enemy)
-        const zap = new Audio('sounds/zap.mp3');
-        zap.currentTime = 0.5;
-        zap.play()
+        if(sound){
+            const zap = new Audio('sounds/zap.mp3');
+            zap.currentTime = 0.5;
+            zap.play()
+        }
         const lightning = document.createElement("div")
         const length = distance(enemy,this)
 
@@ -533,18 +560,27 @@ class Cannon extends Tower {
 
         this.elem = document.createElement("div")
         this.elem.classList.add("tower")
-        this.elem.style.width = this.turretsize*1.5 + "px"
-        this.elem.style.height = this.turretsize*1.5 + "px"
-        this.elem.style.borderRadius = this.turretsize*1.5 + "px"
+        this.elem.style.width = "60%"
+        this.elem.style.height = "60%"
+        this.elem.style.borderRadius = "50%"
 
         this.cannonelem = document.createElement("div");
         this.cannonelem.classList.add("cannon")
-        this.cannonelem.style.width = this.turretsize*1.5 + "px"
-        this.cannonelem.style.height = this.turretsize/3 + "px"
+        this.cannonelem.style.width = "80%"
+        this.cannonelem.style.height = "20%"
+        this.cannonelem.style.left = "11%"
 
         this.elem.insertAdjacentElement("beforeend", this.cannonelem)
-        anchor.insertAdjacentElement("beforeend", this.elem);
+        tile.elem.insertAdjacentElement("beforeend", this.elem);
         this.draw()
+    }
+
+    draw(){
+        this.elem.style.left = "20%"
+        this.elem.style.top = "20%"
+        if (buildmode === "BUILD"){
+            this.drawRadius(true)
+        }
     }
 
     update(){
@@ -557,9 +593,9 @@ class Cannon extends Tower {
         if(reachableEnemies.length === 0){return}
 
         for (const enemy of reachableEnemies) {
-            if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
-                facing(this.elem, enemy.x, enemy.y,-90) //TODO: probable optimization here, only do when shooting?
-                if(this.timer === 0){
+            if(this.timer === 0){
+                if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
+                    facing(this.elem, enemy.x, enemy.y,-90)
                     this.attack(enemy)
                 }
                 break
@@ -571,9 +607,11 @@ class Cannon extends Tower {
 
     attack(enemy) {
         super.attack(enemy)
-        const boom = new Audio('sounds/boom.mp3');
-        boom.currentTime = 1;
-        boom.play()
+        if(sound){
+            const boom = new Audio('sounds/boom.mp3');
+            boom.currentTime = 1;
+            boom.play()
+        }
         this.cannonelem.classList.remove("cannonpow")
         void this.elem.offsetWidth
         this.cannonelem.classList.add("cannonpow")
@@ -588,17 +626,19 @@ class Laser extends Tower {
         this.elem = document.createElement("div")
         this.elem.classList.add("tower")
         this.elem.backgroundColor = "#571313"
-        this.elem.style.width = this.turretsize + "px"
-        this.elem.style.height = this.turretsize + "px"
-        this.elem.style.borderRadius = this.turretsize + "px"
+        this.elem.style.width = "40%"
+        this.elem.style.height = "40%"
+        this.elem.style.borderRadius = "50%"
 
         this.cannonelem = document.createElement("div");
         this.cannonelem.classList.add("cannon")
-        this.cannonelem.style.width = this.turretsize + "px"
-        this.cannonelem.style.height = this.turretsize/3 + "px"
+        this.cannonelem.style.width = "70%"
+        this.cannonelem.style.height = "40%"
+        this.cannonelem.style.left = "17%"
+
 
         this.elem.insertAdjacentElement("beforeend", this.cannonelem)
-        anchor.insertAdjacentElement("beforeend", this.elem);
+        tile.elem.insertAdjacentElement("beforeend", this.elem);
         this.draw()
     }
 
@@ -611,14 +651,14 @@ class Laser extends Tower {
         const reachableEnemies = this.tilesReached.flatMap(tile => {return tile.enemies})
         if(reachableEnemies.length === 0){return}
 
-        for (const enemy of reachableEnemies) {
-            if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
-                facing(this.elem, enemy.x, enemy.y,-90) //TODO: probable optimization here, only do when shooting?
-                if(this.timer === 0){
+        if(this.timer === 0){
+            for (const enemy of reachableEnemies) {
+                if(Math.sqrt((enemy.x-this.x)**2 + (enemy.y-this.y)**2) <= this.radius){
+                    facing(this.elem, enemy.x, enemy.y,-90)
                     this.attack(enemy)
                     this.timer = this.cd;
+                    break
                 }
-                break
             }
         }
         // this.draw()
@@ -629,9 +669,12 @@ class Laser extends Tower {
         super.attack(enemy)
         const beam = document.createElement("div")
         const length = distance(enemy,this)
-        const laser = new Audio('sounds/laser.mp3');
-        laser.currentTime = 1;
-        laser.play()
+
+        if(sound){
+            const laser = new Audio('sounds/laser.mp3');
+            laser.currentTime = 1;
+            laser.play()
+        }
 
         beam.classList = ["lightning"]
         beam.style.backgroundColor = "#c02c2c"
@@ -694,4 +737,19 @@ class CoinPickup{
         this.elem.style.left = this.x + "px"
         this.elem.style.top = this.y + "px"
     }
+}
+
+class Roadblock extends Tile{
+    constructor(tile) {
+        super(tile);
+        const roadblock = document.createElement("div")
+        roadblock.classList.add("roadblock")
+        roadblock.style.top = "25%"
+        // roadblock.style.top = this.getPosC()["y"] - tilesize/2 + "px"
+        // roadblock.style.left = this.getPosC()["x"] - tilesize/2 + "px
+        roadblock.style.left = "25%"
+        this.elem.insertAdjacentElement("beforeend", roadblock)
+
+    }
+    static cost = 500
 }

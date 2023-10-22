@@ -3,6 +3,7 @@ let lives = 20
 let gold = 500
 const w = window.innerWidth
 const h = window.innerHeight
+let sound = true
 const tilesize = Math.min(w / size, h / size)
 const grid = document.getElementById("grid")
 const anchor = document.getElementById("anchor")
@@ -15,7 +16,7 @@ let inWave = false;
 let debug = false;
 document.getElementById("coords").style.color = "white"
 
-const buildmodes = ["DIG","BUILD","SPAWN"]
+const buildmodes = ["DIG","BUILD","SPAWN","BLOCK"]
 let buildmode = buildmodes[0]
 
 const turrettypes = [Gatling, Tesla, Cannon, Laser]
@@ -113,6 +114,13 @@ document.getElementById("buildbutton").addEventListener("mouseup",event=>{
     }
 })
 
+document.getElementById("roadblockbuild").addEventListener("mouseup",event=>{
+    buildmode = buildmodes[3]
+    for (const tower of towers) {
+        tower.drawRadius(false);
+    }
+})
+
 document.getElementById("coinspawn").addEventListener("mouseup",event=>{
     const tile = choice(tiles);
     const {x,y} = tile.getPosC()
@@ -167,6 +175,11 @@ document.getElementById("debugbutton").addEventListener("mouseup",event=>{
     for (const tile of tiles) {
         tile.elem.innerText = tile.num
     }
+})
+
+document.getElementById("soundtoggle").addEventListener("mouseup",event=>{
+    sound = !sound
+    event.target.innerText = sound ? "Sound: On" : "Sound: Off"
 })
 
 
